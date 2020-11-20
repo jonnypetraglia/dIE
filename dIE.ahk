@@ -1,12 +1,15 @@
 ﻿/*
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	~~~~~~~~~~~~~~~~~~~~~~dIE v1.0b~~~~~~~~~~~~~~~~~~~~~~~
+	~~~~~~~~~~~~~~~~~~~~~~dIE v1.1~~~~~~~~~~~~~~~~~~~~~~~~
 	~~~~~~~~~~~~~~~~Copyright Qweex 2012~~~~~~~~~~~~~~~~~~
 	~~~Distributed under the GNU General Public License~~~
 	~~~~~~~~~~~~~~~~~http://www.qweex.com~~~~~~~~~~~~~~~~~
 	~~~~~~~~~~~~~~~~~~~MrQweex@qweex.com~~~~~~~~~~~~~~~~~~
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    dIE is free software: you can redistribute it and/or modify
+    
+	This file is a part of dIE.
+	
+	dIE is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
@@ -17,7 +20,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with StartupSaver.  If not, see <http://www.gnu.org/licenses/>.
+    along with dIE.  If not, see <http://www.gnu.org/licenses/>.
 */
 #notrayicon
 Win_W = 580
@@ -29,12 +32,38 @@ LV_W = 358
 LV_H = 128
 Dl_W = 116
 
-BrowserList = Mozilla Firefox|Google Chrome|Opera|Safari|Chromium|Lunascape|Maxthon|Avant|RockMeIt|Pale Moon|Qupzilla x32|Qupzilla x64|SWare Iron|Arora|Midori|Conquerer|K-Meleon|Ghostzilla|Mozilla Firefox Aurora|Mozilla Firefox Beta|Mozilla Firefox Nightly x32|Mozilla Firefox Nightly x64|Google Chrome Beta|Google Chrome Canary
+About_Name=dIE
+About_Version=1.1
+About_DateLaunch=2012
+About_CompiledDate=06/11/2012
+About_Message=Please don't sue me, Microsoft
 
+ProjectURL=http://www.qweex.com
+
+#include Update_noL.ahk
+#include ErrorReport.ahk
+
+;Sleipnir
+;COmodo
+;Waterfox
+
+Menu, mainmenu, add, Check for &Update, Update
+Menu, mainmenu, add, Send &Error Report, ErrorReport
+Menu, mainmenu, add, &About, ShowAbout
+
+BrowserList = Mozilla Firefox|Google Chrome|Opera|Safari|Chromium|Lunascape|Maxthon|Avant|RockMeIt|Pale Moon|Qupzilla x32|Qupzilla x64|SWare Iron|Arora|Midori|Conquerer|K-Meleon|Ghostzilla|Mozilla Firefox Aurora|Mozilla Firefox Beta|Mozilla Firefox Nightly x32|Mozilla Firefox Nightly x64|Google Chrome Beta|Google Chrome Canary|QtWeb|Columbus|GreenBrowser|TheWorld|CometBird|SeaMonkey
+
+if(A_IsCompiled)
+{
+	hModule := DllCall("GetModuleHandle", Str, A_ScriptFullPath)
+	hAboutIcon := DllCall("LoadImage", UInt, hModule, UInt,   160-1, UInt, IMAGE_ICON := 0x1, Int, Pic_DIM, Int, Pic_DIM, UInt, LR_SHARED := 0x8000)
+}
+
+gui 1: default
 Gui, -MinimizeBox -MaximizeBox +OwnDialogs
 Gui, color, white
-FileInstall, IE.png, %A_Temp%\IE.png
-Gui, add, picture, x20 y20 w%Pic_DIM% h%Pic_DIM%, %A_Temp%\IE.png
+Gui, add, picture, x20 y20 w%Pic_DIM% h%Pic_DIM% hwndappicon 0x3
+SendMessage, STM_SETICON := 0x0170, hAboutIcon, 0,, Ahk_ID %appicon%
 Gui, font, s10, Tahoma
 Gui, add, text,% "xp+" . Pic_DIM+20 . " yp+" . Pic_DIM/4, Welcome to the
 Gui, font, s30 c65b9ec
@@ -42,15 +71,25 @@ Gui, add, text, xp yp+20, Internet Explorer %IE_Version%
 Gui, font
 Gui, font, s10
 Gui, add, text, xp yp+90, Which browser do you want to download?
-Gui, add, Listview, -hdr +Checked xp yp+25 w%LV_W% h%LV_H%,1|
-Gui, add, Button,% "vDL xp+" . (LV_W-Dl_W) . " yp+" . (LV_H+15) . " w" . Dl_w, Download
+Gui, add, Listview, vList -hdr +Checked xp yp+25 w%LV_W% h%LV_H%,1|
+Gui, add, Button,% "vDL xp+" . (LV_W-Dl_W) . " yp+" . (LV_H+15) . " w" . Dl_w, &Download
+Gui, menu, mainmenu
 LV_ModifyCol(1,LV_W-30)
 LV_ModifyCol(2,0)
+gui 34: +owner1
 
-gui, show, w%Win_W% h%Win_H%, %Win_Title%
+
+
+
+gui 1: show, w%Win_W% h%Win_H%, %Win_Title%
 Loop, Parse, BrowserList, |
+{
+	gui 1: default
 	LV_Add("",A_LoopField)
-Gui, Add, StatusBar, Hidden vDownloadStatus
+	gui 34: default
+	LV_Add("",A_LoopField)
+}
+Gui 1: Add, StatusBar, Hidden vDownloadStatus
 SB_SetParts(Win_W/2)
 return
 
@@ -69,6 +108,7 @@ ButtonDownload:
 	if(LV_GetNext(0, "Checked")==0)
 		return
 	Guicontrol, +disabled, DL
+	Guicontrol, +disabled, List
 	GuiControl, Show, DownloadStatus
 	prevID=0
 	Downloading=1
@@ -86,10 +126,63 @@ ButtonDownload:
 	Downloading=0
 	GuiControl, Hide, DownloadStatus
 	Guicontrol, -disabled, DL
+	Guicontrol, -disabled, List
 	Msgbox,,Finished Downloading, All downloads are complete!
 	Run, %A_WorkingDir%\setup
 return
 
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Utility Functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RemoveSpaces(var)
+{
+	stringreplace, var, var, %A_Space%,,All
+	return var
+}
+
+;The following two functions are modifications of those written by SKAN
+;www.autohotkey.com/forum/viewtopic.php?t=19475&postdays=0&postorder=asc&start=15#184468
+Download( url, file, name="")
+{
+	static _init
+	global _cu
+	Splitpath,file, _dFile
+	if ! init
+	{
+		VarSetCapacity(vt,4*11)
+		nPar:="31132253353"
+		Loop, Parse, nPar
+			NumPut(RegisterCallback("DL_Progress","Fast",A_LoopField,A_Index-1),vt,4*(A_Index-1))
+	}
+	
+	SB_SetText("Downloading " . name,1)
+	re:=DllCall("urlmon\URLDownloadToFile" . (A_IsUnicode ? "" : "A"), Uint,0, Str,url,Str,file,Uint,0,UintP,&vt)
+	Return re=0 ? 1 : 0
+}
+DL_Progress( pthis, nP=0, nPMax=0, nSC=0, pST=0 ) {
+	global _cu
+	If (A_EventInfo=6)
+	{
+		Progress, Show
+		P:=100*nP//nPMax
+		SB_SetText(Round(np/1024,1) . " Kb / " . Round(npmax/1024) . " Kb    [ " . p . "`% ]", 2)
+	}
+	Return 0
+}
+
+GetErrorString:
+	gui 34: default
+	ErrorString=
+	Loop
+	{
+		prevID:=LV_GetNext(prevID, "Checked")
+		if(prevID=0)
+			break
+		LV_GetText(TempVar, prevID)
+		ErrorString.="|" . TempVar
+	}
+return
+
+#include AboutWindow.ahk
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Browser Download labels~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -271,8 +364,7 @@ _Midori:
 	StringSplit, array, TempVar, "
 	Midori_a:=array2
 	StringSplit, array, Midori_a, /
-	i:=array0
-	Midori_f:=array%i%
+	Midori_f:=array%array0%
 	Download(Midori_a, "setup/" . Midori_f, "Midori")
 	;URLDownloadToFile, %Midori_a%, setup/%Midori_f%
 	;msgbox, Downloaded Midori
@@ -400,40 +492,49 @@ _GoogleChromeCanary:
 return
 
 
+_QtWeb:
+	Download("http://www.qtweb.net/downloads/QtWeb-setup.exe", "setup/QtWeb-setup.exe", "QtWeb")
+return
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Utility Functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-RemoveSpaces(var)
-{
-	stringreplace, var, var, %A_Space%,,All
-	return var
-}
+_Columbus:
+	Download("http://www.columbus-browser.com/downloads/columbus-setup.exe", "setup/Columbus-setup.exe", "Columbus")
+return
 
-;The following two functions are modifications of those written by SKAN
-;www.autohotkey.com/forum/viewtopic.php?t=19475&postdays=0&postorder=asc&start=15#184468
-Download( url, file, name="")
-{
-	static _init
-	global _cu
-	Splitpath,file, _dFile
-	if ! init
-	{
-		VarSetCapacity(vt,4*11)
-		nPar:="31132253353"
-		Loop, Parse, nPar
-			NumPut(RegisterCallback("DL_Progress","Fast",A_LoopField,A_Index-1),vt,4*(A_Index-1))
-	}
-	
-	SB_SetText("Downloading " . name,1)
-	re:=DllCall("urlmon\URLDownloadToFile" . (A_IsUnicode ? "" : "A"), Uint,0, Str,url,Str,file,Uint,0,UintP,&vt)
-	Return re=0 ? 1 : 0
-}
-DL_Progress( pthis, nP=0, nPMax=0, nSC=0, pST=0 ) {
-	global _cu
-	If (A_EventInfo=6)
-	{
-		Progress, Show
-		P:=100*nP//nPMax
-		SB_SetText(Round(np/1024,1) . " Kb / " . Round(npmax/1024) . " Kb    [ " . p . "`% ]", 2)
-	}
-	Return 0
-}
+_GreenBrowser:
+	Download("http://down.5igb.com/GreenBrowserSetup.exe", "setup/GreenBrowserSetup.exe", "GreenBrowser")
+return
+
+_TheWorld:
+	URLDownloadToFile, http://www.theworld.cn/twen/get.html?lang=en&format=exe, Temp.html
+	FileRead, TempVar, Temp.html
+	FileDelete, Temp.html
+	StringReplace, TempVar, TempVar, >click here<,``
+	StringReplace, TempVar, TempVar, clickToDownload",``
+	StringSplit, array, TempVar, ``
+	StringSplit, array, array2, "
+	TheWorld_a:=array2
+	StringSplit, array, TheWorld_a, /
+	TheWorld_f:=array%array0%
+	Download(TheWorld_a, "setup/" . TheWorld_f, "TheWorld")
+return
+
+_SlimBrowser:
+	Download("http://www.slimbrowser.net/download.php", "setup/sbsetup.exe", "SlimBrowser")
+
+_CometBird:
+	Download("http://download.cometbird.com/download/CometBird.en-US.installer.exe", "setup/CometBird.en-US.installer.exe", "CometBird")
+return
+
+_SeaMonkey:
+	URLDownloadToFile, http://www.seamonkey-project.org/releases/, Temp.html
+	FileRead, TempVar, Temp.html
+	FileDelete, Temp.html
+	stringreplace, TempVar, TempVar, download-win,``
+	stringreplace, TempVar, TempVar, download-win,``
+	StringSplit, array, TempVar, ``
+	StringSplit, array, array2, "
+	StringReplace, SeaMonkey_a, array5, &amp`;, &, all
+	StringSplit, array, SeaMonkey_a, &-
+	SeaMonkey_v:=array2
+	Download(SeaMonkey_a, "setup/SeaMonkey Setup " . SeaMonkey_v . ".exe", "SeaMonkey")
+return
